@@ -1,0 +1,795 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lösen eines Ionenkristalls in Wasser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --page:#e9ebee; --panel:#f6f7f8; --ink:#1c2228; --muted:#59626c; --line:#c4cad1;
+  --stage:#d2d5d9; --stage-ink:#2b3036;
+  --grid:#b9bfc6;
+  --gitter:#b5600b; --gitter-soft:rgba(181,96,11,.14);
+  --hyd:#0e7d70; --hyd-soft:rgba(14,125,112,.14);
+  --warm:#c4352b; --cold:#2a62b5;
+  --focus:#1f5fbf;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --page:#191c20; --panel:#22262b; --ink:#e6e9ed; --muted:#9ba4ae; --line:#3a4149;
+    --stage:#5b6067; --stage-ink:#f1f3f5; --grid:#4a5058;
+    --gitter:#e8993c; --gitter-soft:rgba(232,153,60,.18);
+    --hyd:#3dc2b1; --hyd-soft:rgba(61,194,177,.18);
+    --warm:#ef6b5f; --cold:#6b9ff0; --focus:#7fb0ff;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --page:#191c20; --panel:#22262b; --ink:#e6e9ed; --muted:#9ba4ae; --line:#3a4149;
+  --stage:#5b6067; --stage-ink:#f1f3f5; --grid:#4a5058;
+  --gitter:#e8993c; --gitter-soft:rgba(232,153,60,.18);
+  --hyd:#3dc2b1; --hyd-soft:rgba(61,194,177,.18);
+  --warm:#ef6b5f; --cold:#6b9ff0; --focus:#7fb0ff;
+  color-scheme:dark;
+}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--page);color:var(--ink);
+  font-family:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  font-size:16px;line-height:1.45;-webkit-text-size-adjust:100%}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+header{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1.5rem;justify-content:space-between;
+  padding:.8rem clamp(.8rem,2.5vw,1.6rem) .6rem}
+h1{font-size:clamp(1.15rem,1rem + .9vw,1.6rem);font-weight:700;margin:0;letter-spacing:-.005em}
+h1 small{display:block;font-size:.62em;font-weight:400;color:var(--muted);letter-spacing:0}
+.tabs{display:inline-flex;border:1.5px solid var(--ink);border-radius:999px;padding:3px;gap:3px}
+.tabs button{border:0;background:transparent;padding:.42rem 1rem;border-radius:999px;cursor:pointer;font-weight:700;white-space:nowrap}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--page)}
+
+main{padding:0 clamp(.8rem,2.5vw,1.6rem) 1.2rem}
+.layout{display:grid;gap:1rem;grid-template-columns:minmax(0,1fr)}
+.layout.energy{grid-template-columns:minmax(0,1.45fr) minmax(330px,1fr)}
+@media (max-width:980px){.layout.energy{grid-template-columns:minmax(0,1fr)}}
+@media (max-aspect-ratio:1/1){.stage{aspect-ratio:4/3;max-height:62vh}}
+
+.stage-wrap{display:flex;flex-direction:column;gap:.5rem;min-width:0}
+.stage{position:relative;width:100%;aspect-ratio:16/10;max-height:74vh;background:var(--stage);
+  border-radius:10px;overflow:hidden;touch-action:none;cursor:grab}
+.stage:active{cursor:grabbing}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.stage .hint{position:absolute;right:.5rem;bottom:.45rem;font-size:.78rem;color:var(--stage-ink);pointer-events:none;background:color-mix(in srgb,var(--stage) 82%,transparent);padding:.1rem .45rem;border-radius:6px}
+.stage .count{position:absolute;left:.5rem;top:.45rem;font-size:.85rem;color:var(--stage-ink);pointer-events:none;background:color-mix(in srgb,var(--stage) 82%,transparent);padding:.1rem .45rem;border-radius:6px}
+.stage .legend{position:absolute;left:.5rem;bottom:.45rem;background:color-mix(in srgb,var(--stage) 82%,transparent);padding:.15rem .5rem;border-radius:6px;display:flex;flex-wrap:wrap;gap:.25rem .8rem;font-size:.8rem;color:var(--stage-ink);pointer-events:none}
+.legend span{display:inline-flex;align-items:center;gap:.3rem}
+.legend i{display:inline-block;width:.85rem;height:.85rem;border-radius:50%;box-shadow:inset -2px -2px 3px rgba(0,0,0,.3)}
+.legend i.w{width:auto;height:auto;border-radius:0;box-shadow:none;display:inline-flex;gap:1px}
+.legend i.w b{display:inline-block;width:.6rem;height:.6rem;border-radius:50%;box-shadow:inset -1px -1px 2px rgba(0,0,0,.3)}
+
+.timeline{display:flex;align-items:center;gap:.5rem}
+.timeline [hidden]{display:none}
+.timeline input[type=range]{flex:1;min-width:120px;height:32px;accent-color:var(--ink)}
+.timeline .time{font-variant-numeric:tabular-nums;font-size:.95rem;min-width:6.6em;text-align:right;color:var(--muted)}
+.btn.icon{min-width:40px;justify-content:center;padding:.38rem .5rem}
+.range output{font-variant-numeric:tabular-nums;min-width:1.8em;font-weight:700}
+.stage-wrap:fullscreen{background:var(--page);padding:1rem;justify-content:center}
+.stage-wrap:fullscreen .stage{max-height:82vh}
+.stage-wrap:-webkit-full-screen{background:var(--page);padding:1rem;justify-content:center}
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:.45rem .5rem}
+.btn{border:1.5px solid var(--line);background:var(--panel);border-radius:8px;padding:.38rem .75rem;cursor:pointer;min-height:40px;display:inline-flex;align-items:center;gap:.35rem}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--ink);color:var(--page);border-color:var(--ink);font-weight:700;min-width:7.2rem;justify-content:center}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.sep{width:1px;height:28px;background:var(--line);margin:0 .2rem}
+.chk{display:inline-flex;align-items:center;gap:.35rem;padding:.3rem .5rem;border-radius:8px;cursor:pointer;min-height:40px;user-select:none}
+.chk input{width:1.1rem;height:1.1rem;accent-color:var(--ink)}
+.range{display:inline-flex;align-items:center;gap:.4rem;font-size:.92rem}
+.range input{width:7.5rem;accent-color:var(--ink)}
+select.btn{padding-right:.5rem}
+
+.panel{background:var(--panel);border:1.5px solid var(--line);border-radius:10px;padding:1rem 1.1rem 1.1rem;display:flex;flex-direction:column;gap:.9rem;min-width:0}
+.panel[hidden]{display:none}
+.panel h2{font-size:1.08rem;margin:0}
+.salts{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem}
+.salts button{border:1.5px solid var(--line);background:transparent;border-radius:8px;padding:.45rem .3rem;cursor:pointer;line-height:1.2}
+.salts button b{display:block;font-size:1.05rem}
+.salts button small{color:var(--muted);font-size:.78rem}
+.salts button[aria-pressed="true"]{border-color:var(--ink);background:var(--page);box-shadow:inset 0 0 0 1.5px var(--ink)}
+.seg{display:flex;border:1.5px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{flex:1;border:0;background:transparent;padding:.45rem .4rem;cursor:pointer;font-size:.92rem;line-height:1.2}
+.seg button+button{border-left:1.5px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--page);font-weight:700}
+.steps{display:flex;gap:.4rem;flex-wrap:wrap}
+.steps .btn{flex:1;justify-content:center;font-size:.92rem}
+.steps .btn.done{border-color:var(--ink)}
+.diag-row{display:block;max-width:560px}
+.diag-row svg.diagram{display:block;width:100%;height:auto}
+.explain{margin:0;font-size:.98rem}
+.explain strong{font-weight:700}
+.note{font-size:.82rem;color:var(--muted);margin:0}
+.key{display:flex;flex-wrap:wrap;gap:.3rem .9rem;font-size:.86rem}
+.key span{display:inline-flex;align-items:center;gap:.35rem}
+.key i{width:14px;height:14px;border-radius:3px;display:inline-block}
+
+.info{display:flex;flex-direction:column;gap:.6rem;margin-top:1rem;max-width:84ch}
+details.sol{border:1.5px solid var(--line);border-radius:10px;background:var(--panel);padding:.55rem .9rem}
+details.sol summary{cursor:pointer;font-weight:700;min-height:32px;display:flex;align-items:center}
+details.sol[open] summary{margin-bottom:.4rem}
+.panel details.sol{background:var(--page)}
+.sol-steps{margin:.2rem 0 .4rem;padding-left:1.4rem}
+.sol-steps li{margin:.15rem 0 .45rem;padding:.25rem .5rem;border-radius:6px;border-left:3px solid transparent}
+.sol-steps li.now{background:var(--page);border-left-color:var(--ink)}
+.sol-steps .jump{border:0;background:none;padding:0 0 0 .35rem;color:var(--focus);text-decoration:underline;cursor:pointer;font-size:.9rem;white-space:nowrap}
+.eq{margin:.3rem 0 .2rem;font-weight:700}
+details.model ul{margin:.2rem 0;padding-left:1.2rem}
+details.model li{margin:.3rem 0}
+@media (prefers-reduced-motion: reduce){ .btn,.tabs button{transition:none} }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Lösen von Natriumchlorid in Wasser<small>Vereinfachte Modelldarstellung auf der Teilchenebene</small></h1>
+  <div class="tabs" role="tablist" aria-label="Ansicht wählen">
+    <button role="tab" id="tab-p" aria-selected="true" aria-controls="layout">Teilchenebene</button>
+    <button role="tab" id="tab-e" aria-selected="false" aria-controls="layout">Energetische Betrachtung</button>
+  </div>
+</header>
+
+<main>
+  <div class="layout" id="layout">
+    <section class="stage-wrap" aria-label="Animation">
+      <div class="stage" id="stage">
+        <canvas id="cv" aria-label="Animation: Ionen eines Salzkristalls werden von Wassermolekülen umhüllt und lösen sich" role="img"></canvas>
+        <div class="count" id="count"></div>
+        <div class="legend" id="legend"></div>
+        <div class="hint">Ziehen dreht die Ansicht</div>
+      </div>
+      <div class="timeline" id="timeline">
+        <button class="btn primary" id="play" aria-label="Abspielen oder anhalten">▶ Abspielen</button>
+        <button class="btn icon" id="restart" aria-label="Zum Anfang">⏮</button>
+        <input type="range" id="scrub" min="0" max="60" step="0.05" value="0" aria-label="Zeitleiste der Animation">
+        <span class="time" id="time">0:00 / 0:00</span>
+      </div>
+      <div class="controls">
+        <label class="range">Tempo
+          <select class="btn" id="speed">
+            <option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option>
+          </select>
+        </label>
+        <span class="sep" aria-hidden="true"></span>
+        <label class="chk"><input type="checkbox" id="optCharge" checked> Ionenladungen</label>
+        <label class="chk"><input type="checkbox" id="optPartial"> Partialladungen δ+/δ−</label>
+        <label class="chk"><input type="checkbox" id="optShell"> Hydrathüllen markieren</label>
+        <label class="range">Kristall
+          <select class="btn" id="optCrystal">
+            <option value="333" selected>3 × 3 × 3 (27 Ionen)</option>
+            <option value="332">3 × 3 × 2 (18 Ionen)</option>
+          </select>
+        </label>
+        <label class="range">Freie Wassermoleküle <output id="waterOut">40</output>
+          <input type="range" id="optWater" min="0" max="200" step="10" value="40" aria-label="Anzahl frei beweglicher Wassermoleküle">
+        </label>
+        <span class="sep" aria-hidden="true"></span>
+        <button class="btn" id="resetView">Ansicht zurücksetzen</button>
+        <button class="btn" id="fs">Vollbild</button>
+      </div>
+    </section>
+
+    <aside class="panel" id="panel" hidden aria-label="Energetische Betrachtung">
+      <div>
+        <h2>Salz aus dem Versuch</h2>
+        <div class="salts" id="salts" style="margin-top:.5rem"></div>
+      </div>
+      <div>
+        <div class="seg" role="group" aria-label="Darstellung des Ablaufs">
+          <button id="modeReal" aria-pressed="true">Wie in der Animation (gleichzeitig)</button>
+          <button id="modeStep" aria-pressed="false">Gedanklich in zwei Schritten</button>
+        </div>
+        <div class="steps" id="steps" hidden style="margin-top:.5rem">
+          <button class="btn" id="step1">1 · Gitter zerlegen</button>
+          <button class="btn" id="step2" disabled>2 · Ionen hydratisieren</button>
+        </div>
+      </div>
+      <div class="diag-row">
+        <svg class="diagram" id="diagram" viewBox="0 0 470 424" role="img" aria-label="Enthalpiediagramm des Lösungsvorgangs mit Thermometer für die Temperaturänderung der Lösung"></svg>
+      </div>
+      <div class="key">
+        <span><i style="background:var(--gitter)"></i>Gitterenthalpie: wird aufgewendet</span>
+        <span><i style="background:var(--hyd)"></i>Hydratationsenthalpie: wird frei</span>
+      </div>
+      <details class="sol">
+        <summary>Erklärung anzeigen (Lösung)</summary>
+        <p class="explain" id="explain"></p>
+      </details>
+      <label class="chk" style="padding-left:0"><input type="checkbox" id="optNumbers" checked> Zahlenwerte zeigen</label>
+      <p class="note" id="srcNote">Vorzeichen aus Sicht des Systems: aufgewendete Energie positiv, freigesetzte negativ. ΔH<sub>L</sub>: Parker (1965), NBS, Werte bei 25 °C und unendlicher Verdünnung; Gitterenthalpien (Born-Haber): Tabellenwerte nach LibreTexts Chemistry; ΔH<sub>Hyd</sub> (Summe beider Ionen) berechnet als ΔH<sub>L</sub> − ΔH<sub>G</sub>. Je nach Quelle weichen die Werte um einige kJ/mol ab.</p>
+    </aside>
+  </div>
+
+  <div class="info">
+    <details class="sol" id="solBox">
+      <summary>Lösung: Beschreibung des Vorgangs</summary>
+      <ol class="sol-steps" id="solSteps"></ol>
+      <p class="eq" id="solEq"></p>
+    </details>
+    <details class="sol model">
+      <summary>Modellgrenzen</summary>
+      <ul id="limits"></ul>
+    </details>
+  </div>
+</main>
+
+<script>
+(()=>{
+"use strict";
+/* ---------- Daten ---------- */
+const SALTS={
+  LiCl:{name:"Lithiumchlorid",formula:"LiCl",cat:{sym:"Li",label:"Li⁺",name:"Lithium-Ion",r:0.76,color:"#c88cf0",n:4},
+        an:{sym:"Cl",label:"Cl⁻",name:"Chlorid-Ion",r:1.81,color:"#35b24a",n:6},G:853,L:-37.0},
+  NaCl:{name:"Natriumchlorid",formula:"NaCl",cat:{sym:"Na",label:"Na⁺",name:"Natrium-Ion",r:1.02,color:"#9a5ad6",n:6},
+        an:{sym:"Cl",label:"Cl⁻",name:"Chlorid-Ion",r:1.81,color:"#35b24a",n:6},G:786,L:3.9},
+  KCl:{name:"Kaliumchlorid",formula:"KCl",cat:{sym:"K",label:"K⁺",name:"Kalium-Ion",r:1.38,color:"#7438b8",n:6},
+        an:{sym:"Cl",label:"Cl⁻",name:"Chlorid-Ion",r:1.81,color:"#35b24a",n:6},G:715,L:17.2}
+};
+for(const k in SALTS){const s=SALTS[k];s.H=Math.round(s.L-s.G);}
+const R_O=1.20,R_H=0.78,B_OH=0.96,HALF=52.25*Math.PI/180;
+const HL=[Math.sin(HALF)*B_OH,0,Math.cos(HALF)*B_OH], HR=[-Math.sin(HALF)*B_OH,0,Math.cos(HALF)*B_OH];
+const BOX=[34,22,14], VIEW=[23,14.5], CRYSTALS={"333":[3,3,3],"332":[3,3,2]}, DT=1/40, CP=40;
+
+/* ---------- Mathematik ---------- */
+const add=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]], sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],
+ mul=(a,s)=>[a[0]*s,a[1]*s,a[2]*s], dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],
+ len=a=>Math.hypot(a[0],a[1],a[2]), norm=a=>{const l=len(a)||1;return [a[0]/l,a[1]/l,a[2]/l]},
+ cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]], lerp=(a,b,t)=>add(a,mul(sub(b,a),t));
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x)), ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+const qmul=(a,b)=>[a[0]*b[0]-a[1]*b[1]-a[2]*b[2]-a[3]*b[3],a[0]*b[1]+a[1]*b[0]+a[2]*b[3]-a[3]*b[2],
+ a[0]*b[2]-a[1]*b[3]+a[2]*b[0]+a[3]*b[1],a[0]*b[3]+a[1]*b[2]-a[2]*b[1]+a[3]*b[0]];
+const qnorm=q=>{const l=Math.hypot(q[0],q[1],q[2],q[3])||1;return [q[0]/l,q[1]/l,q[2]/l,q[3]/l]};
+function qrot(q,v){const [w,x,y,z]=q;const tx=2*(y*v[2]-z*v[1]),ty=2*(z*v[0]-x*v[2]),tz=2*(x*v[1]-y*v[0]);
+ return [v[0]+w*tx+(y*tz-z*ty),v[1]+w*ty+(z*tx-x*tz),v[2]+w*tz+(x*ty-y*tx)];}
+function qexp(w,dt){const a=len(w)*dt; if(a<1e-9)return[1,0,0,0]; const s=Math.sin(a/2)/len(w); return [Math.cos(a/2),w[0]*s,w[1]*s,w[2]*s];}
+function qslerp(a,b,t){let d=a[0]*b[0]+a[1]*b[1]+a[2]*b[2]+a[3]*b[3];if(d<0){b=b.map(x=>-x);d=-d}
+ if(d>.9995)return qnorm(a.map((x,i)=>x+(b[i]-x)*t));const th=Math.acos(d),s=Math.sin(th),w1=Math.sin((1-t)*th)/s,w2=Math.sin(t*th)/s;
+ return a.map((x,i)=>x*w1+b[i]*w2);}
+function qFromMat(c0,c1,c2){const m00=c0[0],m11=c1[1],m22=c2[2],tr=m00+m11+m22;let q;
+ if(tr>0){const s=Math.sqrt(tr+1)*2;q=[.25*s,(c1[2]-c2[1])/s,(c2[0]-c0[2])/s,(c0[1]-c1[0])/s]}
+ else if(m00>m11&&m00>m22){const s=Math.sqrt(1+m00-m11-m22)*2;q=[(c1[2]-c2[1])/s,.25*s,(c1[0]+c0[1])/s,(c2[0]+c0[2])/s]}
+ else if(m11>m22){const s=Math.sqrt(1+m11-m00-m22)*2;q=[(c2[0]-c0[2])/s,(c1[0]+c0[1])/s,.25*s,(c2[1]+c1[2])/s]}
+ else{const s=Math.sqrt(1+m22-m00-m11)*2;q=[(c0[1]-c1[0])/s,(c2[0]+c0[2])/s,(c2[1]+c1[2])/s,.25*s]}
+ return qnorm(q);}
+let seed=1;const rnd=()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+const rr=(a,b)=>a+(b-a)*rnd();
+function rdir(){const z=rr(-1,1),p=rr(0,Math.PI*2),s=Math.sqrt(1-z*z);return [s*Math.cos(p),s*Math.sin(p),z]}
+function rquat(){return qnorm([rr(-1,1),rr(-1,1),rr(-1,1),rr(-1,1)])}
+function perp(u){const a=Math.abs(u[0])<.8?[1,0,0]:[0,1,0];return norm(cross(u,a))}
+
+/* ---------- Zustand ---------- */
+const S={salt:"NaCl",crystal:"333",n:0,dur:40,cps:[],marks:{},fG:0,fH:0,done:0,ions:[],waters:[],t:0,running:false,speed:1,mode:"real",step:0,stepT:0,
+ lastStart:-1,freeTarget:40,waterFade:1,events:[],nG:0,nH:0,eventCount:{G:0,H:0},tempNow:0,
+ opt:{charge:true,partial:false,shell:false,numbers:true},view:"particles",gasDone:false};
+const cam={yaw:-0.55,pitch:0.32,zoom:1};
+let lattice=new Map();
+const key=(i,j,k)=>i+","+j+","+k;
+
+function siteGeom(kind,ionR,dir){
+  // liefert Offset des O-Atoms und Orientierung des Wassermoleküls (im Clusterrahmen)
+  const roll=perp(dir);
+  if(kind==="cat"){ // O zeigt zum Ion, Dipol nach außen
+    const d=ionR+R_O*0.95, z=dir, x=roll, y=cross(z,x);
+    return {off:mul(dir,d),q:qFromMat(x,y,z)};
+  }else{ // ein H zeigt zum Ion
+    const dH=ionR+R_H*0.8, b1=mul(dir,-1), b2=roll, b3=cross(b1,b2);
+    const h=norm(HL), a2=[0,1,0], a3=cross(h,a2);
+    // R = B·Aᵀ  (Spalten)
+    const col=j=>{const A=[h,a2,a3],B=[b1,b2,b3];const c=[0,0,0];for(let k=0;k<3;k++){for(let r=0;r<3;r++)c[r]+=B[k][r]*A[k][j]}return c};
+    return {off:mul(dir,dH+B_OH),q:qFromMat(col(0),col(1),col(2))};
+  }
+}
+const OCT=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+const TET=[[1,1,1],[1,-1,-1],[-1,1,-1],[-1,-1,1]].map(norm);
+
+function makeWater(pos,alpha=1){return {pos,vel:mul(rdir(),rr(1,3)),q:rquat(),w:mul(rdir(),rr(.5,1.6)),alpha,alphaT:1,state:"free",ion:null,site:-1,t:0,dur:1,delay:0,p0:null,q0:null,kill:false}}
+
+function reset(){
+  seed=({LiCl:11,NaCl:7,KCl:5})[S.salt]*1000+3;
+  const s=SALTS[S.salt],DIMS=CRYSTALS[S.crystal];S.ions=[];S.waters=[];lattice=new Map();S.t=0;S.n=0;S.lastStart=-1;S.events=[];S.fG=S.fH=S.done=0;
+  S.nG=0;S.nH=0;S.eventCount={G:0,H:0};S.step=0;S.stepT=0;S.waterFade=1;S.gasDone=false;
+  const d=s.cat.r+s.an.r, o=DIMS.map(n=>(n-1)/2);
+  for(let i=0;i<DIMS[0];i++)for(let j=0;j<DIMS[1];j++)for(let k=0;k<DIMS[2];k++){
+    const kind=(i+j+k)%2===0?"an":"cat", sp=s[kind];
+    const lat=[(i-o[0])*d,(j-o[1])*d,(k-o[2])*d];
+    const dirs=sp.n===4?TET:OCT;
+    const ion={idx:S.ions.length,kind,sp,r:sp.r,lat,pos:lat.slice(),g:[i,j,k],state:"lattice",qc:[1,0,0,0],w:mul(rdir(),.25),
+      vel:[0,0,0],timer:0,phase:[rr(0,6.3),rr(0,6.3),rr(0,6.3)],outward:[0,0,0],from:null,to:null,delay:0,
+      sites:dirs.map(dd=>({dir:dd,...siteGeom(kind,sp.r,dd),water:null})),glow:null};
+    ion.Rc=Math.max(...ion.sites.map(x=>len(x.off)))+R_O+0.3;
+    S.ions.push(ion);lattice.set(key(i,j,k),ion);
+  }
+  updateCrystalBox();
+  for(let n=0;n<S.freeTarget;n++){const p=spawnPos(false);if(p)S.waters.push(makeWater(p));}
+  S.tempNow=0;
+  if(S.mode==="real")precompute();
+  ui.onReset();
+}
+/* ---------- Vorausberechnung, Sicherungspunkte, Spulen ---------- */
+const v3=a=>a?a.slice():a;
+function snap(){
+  return {n:S.n,seed,lastStart:S.lastStart,nG:S.nG,nH:S.nH,ec:{...S.eventCount},temp:S.tempNow,wf:S.waterFade,fG:S.fG,fH:S.fH,done:S.done,
+    events:S.events.map(e=>({type:e.type,ion:e.ion.idx,t:e.t,n:e.n})),
+    ions:S.ions.map(i=>({pos:v3(i.pos),qc:v3(i.qc),w:v3(i.w),vel:v3(i.vel),timer:i.timer,state:i.state,outward:v3(i.outward),
+      from:v3(i.from),to:v3(i.to),exp:v3(i.exp),glow:i.glow?{...i.glow}:null})),
+    waters:S.waters.map(w=>({pos:v3(w.pos),vel:v3(w.vel),q:v3(w.q),w:v3(w.w),alpha:w.alpha,alphaT:w.alphaT,state:w.state,
+      ion:w.ion?w.ion.idx:-1,site:w.site,t:w.t,dur:w.dur,delay:w.delay,p0:v3(w.p0),q0:v3(w.q0),kill:w.kill}))};
+}
+function restore(c){
+  S.n=c.n;S.t=c.n*DT;seed=c.seed;S.lastStart=c.lastStart;S.nG=c.nG;S.nH=c.nH;S.eventCount={...c.ec};S.tempNow=c.temp;S.waterFade=c.wf;
+  S.fG=c.fG;S.fH=c.fH;S.done=c.done;
+  c.ions.forEach((o,k)=>{const i=S.ions[k];i.pos=v3(o.pos);i.qc=v3(o.qc);i.w=v3(o.w);i.vel=v3(o.vel);i.timer=o.timer;i.state=o.state;
+    i.outward=v3(o.outward);i.from=v3(o.from);i.to=v3(o.to);i.exp=v3(o.exp);i.glow=o.glow?{...o.glow}:null;i.sites.forEach(st=>st.water=null)});
+  S.waters=c.waters.map(o=>({pos:v3(o.pos),vel:v3(o.vel),q:v3(o.q),w:v3(o.w),alpha:o.alpha,alphaT:o.alphaT,state:o.state,
+    ion:o.ion>=0?S.ions[o.ion]:null,site:o.site,t:o.t,dur:o.dur,delay:o.delay,p0:v3(o.p0),q0:v3(o.q0),kill:o.kill}));
+  for(const w of S.waters)if(w.ion&&(w.state==="approach"||w.state==="bound"))w.ion.sites[w.site].water=w;
+  S.events=c.events.map(e=>({type:e.type,ion:S.ions[e.ion],t:e.t,n:e.n}));
+  lattice=new Map();for(const i of S.ions)if(i.state==="lattice"||i.state==="attack")lattice.set(key(...i.g),i);
+  updateCrystalBox();
+}
+function precompute(){
+  S.cps=[];const m={attack:null,detach:null,hyd:null,half:null,done:null};const N=S.ions.length;let tail=-1;
+  for(let it=0;it<180*40;it++){
+    if(S.n%CP===0)S.cps.push(snap());
+    stepSim(DT);
+    if(m.attack==null&&S.ions.some(i=>i.state==="attack"))m.attack=S.t;
+    if(m.detach==null&&S.nG>0)m.detach=S.t;
+    if(m.hyd==null&&S.nH>0)m.hyd=S.t;
+    if(m.half==null&&S.nG>=Math.ceil(N/2))m.half=S.t;
+    if(tail<0&&S.nH===N){m.done=S.t;tail=0}
+    if(tail>=0){tail+=DT;if(tail>=6)break}
+  }
+  S.cps.push(snap());S.dur=S.t;S.marks=m;restore(S.cps[0]);
+}
+function seek(t){
+  if(S.mode!=="real"||!S.cps.length)return;
+  const n=clamp(Math.round(t/DT),0,Math.round(S.dur/DT));
+  let k=Math.floor(n/CP);k=Math.min(k,S.cps.length-1);while(k>0&&S.cps[k].n>n)k--;
+  restore(S.cps[k]);while(S.n<n)stepSim(DT);
+}
+let cbox=null;
+function updateCrystalBox(){
+  let mn=[1e9,1e9,1e9],mx=[-1e9,-1e9,-1e9],any=false;
+  for(const ion of S.ions){if(ion.state!=="lattice"&&ion.state!=="attack")continue;any=true;
+    for(let a=0;a<3;a++){mn[a]=Math.min(mn[a],ion.lat[a]-ion.r);mx[a]=Math.max(mx[a],ion.lat[a]+ion.r)}}
+  cbox=any?{mn,mx}:null;
+}
+function distBox(p){if(!cbox)return 1e9;let q=[0,0,0];for(let a=0;a<3;a++)q[a]=clamp(p[a],cbox.mn[a],cbox.mx[a]);return len(sub(p,q))}
+function spawnPos(edge){
+  for(let tries=0;tries<60;tries++){
+    let p=[rr(-BOX[0],BOX[0]),rr(-BOX[1],BOX[1]),rr(-BOX[2],BOX[2])];
+    if(edge){const a=rnd()<.6?0:1;p[a]=(rnd()<.5?-1:1)*rr(VIEW[a]+3,BOX[a])}
+    if(distBox(p)<3.2)continue;
+    let ok=true;for(const ion of S.ions){if(ion.state==="lattice")continue;if(len(sub(p,ion.pos))<ion.Rc+.8){ok=false;break}}
+    if(ok)return p;
+  }
+  return null;
+}
+function neighborsPresent(ion){let n=0;for(const a of OCT){if(lattice.has(key(ion.g[0]+a[0],ion.g[1]+a[1],ion.g[2]+a[2])))n++}return n}
+function exposedSites(ion){
+  const out=[];ion.sites.forEach((s,idx)=>{let blocked=false;
+    for(const a of OCT){if(dot(s.dir,a)>0.5&&lattice.has(key(ion.g[0]+a[0],ion.g[1]+a[1],ion.g[2]+a[2]))){blocked=true;break}}
+    if(!blocked)out.push(idx)});return out;
+}
+function sitePos(ion,s){return add(ion.pos,qrot(ion.qc,s.off))}
+function siteQ(ion,s){return qmul(ion.qc,s.q)}
+function recruit(ion,idx,opts={}){
+  const s=ion.sites[idx];if(s.water)return;const P=sitePos(ion,s);let best=null,bd=1e9;
+  if(!opts.spawn){for(const w of S.waters){if(w.state!=="free"||w.kill||(w.alpha<.6&&!opts.any))continue;const d=len(sub(w.pos,P));if(d<bd){bd=d;best=w}}}
+  if(!best||bd>(opts.any?16:22)){const dir=norm(add(qrot(ion.qc,s.dir),mul(rdir(),.5)));best=makeWater(add(P,mul(dir,rr(5,8))),0);best.alphaT=1;S.waters.push(best);bd=len(sub(best.pos,P))}
+  best.state="approach";best.ion=ion;best.site=idx;best.t=0;best.p0=best.pos.slice();best.q0=best.q.slice();
+  best.dur=(opts.dur||0.55)+bd/(opts.v||8);best.delay=opts.delay||0;s.water=best;
+}
+function shellComplete(ion,list){return (list||ion.sites.map((_,i)=>i)).every(i=>ion.sites[i].water&&ion.sites[i].water.state==="bound")}
+function addEvent(type,ion){S.events.push({type,ion,t:0,n:++S.eventCount[type]});ion.glow={type,t:0};}
+
+/* ---------- Simulation ---------- */
+function stepSim(dt){
+  S.n++;S.t=S.n*DT;const s=SALTS[S.salt],N=S.ions.length;
+  const tf=1+0.28*S.tempNow; // Teilchenbewegung ~ Temperatur
+  // Lösen gleichzeitig
+  if(S.mode==="real"&&S.t>2.2){
+    const active=S.ions.filter(i=>i.state==="attack"||i.state==="detach").length;
+    if(active<3&&S.t-S.lastStart>0.85){
+      let cand=null,cs=1e9;
+      for(const ion of S.ions){if(ion.state!=="lattice")continue;const ex=exposedSites(ion).length;if(!ex)continue;
+        const sc=neighborsPresent(ion)*10-ex*2+rnd()*3;if(sc<cs){cs=sc;cand=ion}}
+      if(cand){cand.state="attack";cand.timer=0;cand.exp=exposedSites(cand);cand.exp.forEach(i=>recruit(cand,i));S.lastStart=S.t;}
+    }
+  }
+  // Zwei-Schritt-Gedankenexperiment
+  if(S.mode==="step"){
+    S.stepT+=dt;
+    if(S.step===1){S.waterFade=Math.max(.07,S.waterFade-dt*.9)}
+    if(S.step===2){S.waterFade=Math.min(1,S.waterFade+dt*.7)}
+  }
+  let changed=false;
+  for(const ion of S.ions){
+    ion.timer+=dt;
+    if(ion.glow){ion.glow.t+=dt;if(ion.glow.t>2.2)ion.glow=null}
+    switch(ion.state){
+      case "lattice":case "attack":{
+        const a=.07;ion.pos=[ion.lat[0]+a*Math.sin(S.t*7.1+ion.phase[0]),ion.lat[1]+a*Math.sin(S.t*6.3+ion.phase[1]),ion.lat[2]+a*Math.sin(S.t*7.7+ion.phase[2])];
+        if(ion.state==="attack"&&ion.timer>0.5&&shellComplete(ion,ion.exp)){
+          ion.state="detach";ion.timer=0;lattice.delete(key(...ion.g));changed=true;
+          let o=[0,0,0];ion.exp.forEach(i=>o=add(o,ion.sites[i].dir));
+          if(len(o)<.3)o=ion.lat;ion.outward=norm(add(norm(o),mul(norm(ion.lat),.35)));
+          ion.from=ion.pos.slice();ion.to=add(ion.lat,mul(ion.outward,ion.Rc*1.05));
+          S.nG++;addEvent("G",ion);
+        }
+        break}
+      case "detach":{
+        const p=clamp(ion.timer/1.5,0,1);ion.pos=lerp(ion.from,ion.to,ease(p));
+        if(p>=1){ion.state="complete";ion.timer=0;ion.vel=mul(ion.outward,1.6);ion.sites.forEach((_,i)=>recruit(ion,i))}
+        break}
+      case "gasmove":{
+        const p=clamp((ion.timer-ion.delay)/2.6,0,1);ion.pos=lerp(ion.from,ion.to,ease(p));ion.prog=p;
+        if(p>=1){ion.state="gas";ion.base=ion.to}
+        break}
+      case "gas":{const a=.08;ion.pos=[ion.base[0]+a*Math.sin(S.t*5+ion.phase[0]),ion.base[1]+a*Math.sin(S.t*4.4+ion.phase[1]),ion.base[2]+a*Math.sin(S.t*5.6+ion.phase[2])];break}
+      case "complete":case "hydrated":{
+        if(ion.state==="complete"&&shellComplete(ion)){ion.state="hydrated";S.nH++;addEvent("H",ion)}
+        // Drift
+        ion.vel=add(ion.vel,mul(rdir(),rr(0,8)*dt));ion.vel=mul(ion.vel,Math.pow(.75,dt));
+        const sp=len(ion.vel),mx=4.2*tf;if(sp>mx)ion.vel=mul(ion.vel,mx/sp);
+        for(let a=0;a<3;a++){const lim=BOX[a]-ion.Rc;if(ion.pos[a]>lim)ion.vel[a]-=9*dt;if(ion.pos[a]<-lim)ion.vel[a]+=9*dt}
+        const db=distBox(ion.pos);if(db<ion.Rc+.6&&cbox){const c=[(cbox.mn[0]+cbox.mx[0])/2,(cbox.mn[1]+cbox.mx[1])/2,(cbox.mn[2]+cbox.mx[2])/2];ion.vel=add(ion.vel,mul(norm(sub(ion.pos,c)),8*dt))}
+        ion.pos=add(ion.pos,mul(ion.vel,dt*tf));
+        if(ion.state==="hydrated"){ion.w=add(ion.w,mul(rdir(),.6*dt));if(len(ion.w)>.45)ion.w=mul(norm(ion.w),.45);ion.qc=qnorm(qmul(qexp(ion.w,dt),ion.qc))}
+        break}
+    }
+  }
+  // Cluster-Abstoßung
+  const fl=S.ions.filter(i=>i.state==="complete"||i.state==="hydrated");
+  for(let a=0;a<fl.length;a++)for(let b=a+1;b<fl.length;b++){
+    const A=fl[a],B=fl[b],d=sub(A.pos,B.pos),l=len(d),m=A.Rc+B.Rc+3.5;
+    if(l<m&&l>1e-6){const f=(m-l)/m*6*dt,u=mul(d,1/l);A.vel=add(A.vel,mul(u,f));B.vel=sub(B.vel,mul(u,f));
+      const hard=A.Rc+B.Rc-.4;if(l<hard){const push=mul(u,(hard-l)*.5);A.pos=add(A.pos,push);B.pos=sub(B.pos,push)}}
+  }
+  if(changed)updateCrystalBox();
+  // Wasser
+  const nonLat=S.ions.filter(i=>i.state!=="lattice"&&i.state!=="attack");
+  const grid=new Map(),cell=3;
+  const free=S.waters.filter(w=>w.state==="free");
+  const gk=(x,y,z)=>(x+64)*16384+(y+64)*128+(z+64);
+  for(const w of free){const k=gk(Math.floor(w.pos[0]/cell),Math.floor(w.pos[1]/cell),Math.floor(w.pos[2]/cell));let arr=grid.get(k);if(!arr){arr=[];grid.set(k,arr)}arr.push(w)}
+  for(const w of S.waters){
+    if(w.state==="free"){
+      w.vel=add(w.vel,mul(rdir(),rr(0,9)*dt));w.vel=mul(w.vel,Math.pow(.6,dt));
+      const sp=len(w.vel),mx=3.6;if(sp>mx)w.vel=mul(w.vel,mx/sp);
+      for(let a=0;a<3;a++){if(w.pos[a]>BOX[a])w.vel[a]=-Math.abs(w.vel[a]);if(w.pos[a]<-BOX[a])w.vel[a]=Math.abs(w.vel[a])}
+      // Kristall
+      const db=distBox(w.pos);if(db<2.2&&cbox){let q=[0,0,0];for(let a=0;a<3;a++)q[a]=clamp(w.pos[a],cbox.mn[a],cbox.mx[a]);
+        let n=sub(w.pos,q);if(len(n)<1e-6)n=norm(w.pos);w.pos=add(w.pos,mul(norm(n),(2.2-db)*Math.min(1,dt*8)))}
+      if(S.mode==="step"&&S.step>=1){/* Gasphase: Ionen frei, keine Wechselwirkung darstellen */}
+      for(const ion of nonLat){const m=(ion.state==="gas"||ion.state==="gasmove")?ion.r+R_O+.4:ion.Rc+.5;
+        const dx=w.pos[0]-ion.pos[0];if(dx>m||dx<-m)continue;const dy=w.pos[1]-ion.pos[1];if(dy>m||dy<-m)continue;const dz=w.pos[2]-ion.pos[2];if(dz>m||dz<-m)continue;
+        const l=Math.sqrt(dx*dx+dy*dy+dz*dz);if(l<m&&l>1e-6){const f=(m-l)/l*Math.min(1,dt*6);w.pos=[w.pos[0]+dx*f,w.pos[1]+dy*f,w.pos[2]+dz*f]}}
+      // Wasser-Wasser
+      const gx=Math.floor(w.pos[0]/cell),gy=Math.floor(w.pos[1]/cell),gz=Math.floor(w.pos[2]/cell);
+      for(let ix=-1;ix<=1;ix++)for(let iy=-1;iy<=1;iy++)for(let iz=-1;iz<=1;iz++){const arr=grid.get(gk(gx+ix,gy+iy,gz+iz));if(!arr)continue;
+        for(const o of arr){if(o===w)continue;const dx=w.pos[0]-o.pos[0],dy=w.pos[1]-o.pos[1],dz=w.pos[2]-o.pos[2],l2=dx*dx+dy*dy+dz*dz;
+          if(l2<7.5625&&l2>1e-12){const l=Math.sqrt(l2),f=(2.75-l)/l*.25*Math.min(1,dt*8);w.pos=[w.pos[0]+dx*f,w.pos[1]+dy*f,w.pos[2]+dz*f]}}}
+      w.pos=add(w.pos,mul(w.vel,dt*tf));
+      w.w=add(w.w,mul(rdir(),2*dt));if(len(w.w)>1.8)w.w=mul(norm(w.w),1.8);
+      w.q=qnorm(qmul(qexp(w.w,dt*tf),w.q));
+      const aT=w.kill?0:w.alphaT*S.waterFade;w.alpha+=(aT-w.alpha)*Math.min(1,dt*2.5);
+    }else if(w.state==="approach"){
+      const ion=w.ion,s=ion.sites[w.site];
+      if(w.delay>0){w.delay-=dt;w.alpha+=(S.waterFade*w.alphaT-w.alpha)*Math.min(1,dt*2);continue}
+      w.t+=dt;const p=clamp(w.t/w.dur,0,1),e=ease(p);
+      w.pos=lerp(w.p0,sitePos(ion,s),e);w.q=qslerp(w.q0,siteQ(ion,s),e);
+      w.alpha+=(1-w.alpha)*Math.min(1,dt*3);
+      if(p>=1)w.state="bound";
+    }else{ // bound
+      const ion=w.ion,s=ion.sites[w.site];w.pos=sitePos(ion,s);w.q=siteQ(ion,s);w.alpha+=(1-w.alpha)*Math.min(1,dt*3);
+    }
+  }
+  S.waters=S.waters.filter(w=>!(w.kill&&w.alpha<.03));
+  // Nachschub/Abbau freier Wassermoleküle
+  const nFree=S.waters.filter(w=>w.state==="free"&&!w.kill).length;
+  if(nFree<S.freeTarget){for(let n=0;n<Math.min(2,S.freeTarget-nFree);n++){const p=spawnPos(true);if(p)S.waters.push(makeWater(p,0))}}
+  else if(nFree>S.freeTarget){let ex=nFree-S.freeTarget;for(const w of S.waters){if(ex<=0)break;if(w.state==="free"&&!w.kill){w.kill=true;ex--}}}
+  // Ereignisse
+  for(const e of S.events)e.t+=dt;S.events=S.events.filter(e=>e.t<2.4);
+  // Energie
+  let fG,fH,doneFrac;
+  if(S.mode==="real"){fG=S.nG/N;fH=S.nH/N;doneFrac=fH}
+  else{
+    fG=S.step>=1?S.ions.reduce((a,i)=>a+(i.state==="gasmove"?(i.prog||0):(i.state==="lattice"?0:1)),0)/N:0;
+    let tot=0,bd=0;if(S.step>=2){for(const i of S.ions)for(const st of i.sites){tot++;if(st.water&&st.water.state==="bound")bd++}}
+    fH=tot?bd/tot:0;doneFrac=fH>=1?1:0;
+    if(S.step===1&&fG>=1&&!S.gasDone){S.gasDone=true}
+  }
+  const target=-(s.L/40)*doneFrac;S.tempNow+=(target-S.tempNow)*Math.min(1,dt*1.2);
+  S.fG=fG;S.fH=fH;S.done=doneFrac;
+}
+
+function startStep(n){
+  if(n===1&&S.step===0){
+    S.step=1;S.stepT=0;
+    const N=S.ions.length,cols=N>18?5:3,rows=3,lays=2;let tg=[];
+    for(let i=0;i<cols;i++)for(let j=0;j<rows;j++)for(let k=0;k<lays;k++)
+      tg.push([(i-(cols-1)/2)*(2*VIEW[0]-9)/(cols-1)+rr(-1.2,1.2),(j-(rows-1)/2)*(2*VIEW[1]-8)/(rows-1)+rr(-1.2,1.2),(k-(lays-1)/2)*10+rr(-1.5,1.5)]);
+    while(tg.length>N)tg.splice(Math.floor(rnd()*tg.length),1);
+    const ions=S.ions.slice().sort((a,b)=>(a.lat[0]+.2*a.lat[1]+.05*a.lat[2])-(b.lat[0]+.2*b.lat[1]+.05*b.lat[2]));
+    tg.sort((a,b)=>(a[0]+.2*a[1]+.05*a[2])-(b[0]+.2*b[1]+.05*b[2]));
+    ions.forEach((ion,i)=>{ion.state="gasmove";ion.timer=0;ion.delay=rr(0,.9);ion.from=ion.pos.slice();ion.to=tg[i];ion.prog=0});
+    lattice.clear();updateCrystalBox();
+  }else if(n===2&&S.step===1&&S.gasDone){
+    S.step=2;S.stepT=0;
+    for(const ion of S.ions){ion.state="complete";ion.vel=[0,0,0];ion.sites.forEach((_,i)=>recruit(ion,i,{any:true,delay:rr(0,1.2),dur:1.4,v:7}))}
+  }
+}
+
+/* ---------- Darstellung ---------- */
+const cv=document.getElementById("cv"),ctx=cv.getContext("2d"),stageEl=document.getElementById("stage");
+let W=0,H=0,DPR=1,sprites={},bgColor="#d2d5d9",inkColor="#2b3036";
+const FOG=8;
+function hex2rgb(h){h=h.trim();if(h.startsWith("rgb")){const m=h.match(/[\d.]+/g).map(Number);return m.slice(0,3)}h=h.replace("#","");if(h.length===3)h=h.split("").map(c=>c+c).join("");return [0,2,4].map(i=>parseInt(h.substr(i,2),16))}
+const mix=(a,b,t)=>a.map((x,i)=>Math.round(x+(b[i]-x)*t)), rgb=c=>`rgb(${c[0]},${c[1]},${c[2]})`;
+function buildSprites(){
+  const cs=getComputedStyle(document.documentElement);bgColor=cs.getPropertyValue("--stage").trim()||"#d2d5d9";inkColor=cs.getPropertyValue("--stage-ink").trim()||"#2b3036";
+  const bg=hex2rgb(bgColor);const cols={O:"#e0352f",H:"#f3f4f5"};
+  for(const k in SALTS){cols[SALTS[k].cat.sym]=SALTS[k].cat.color;cols.Cl=SALTS[k].an.color}
+  sprites={};const SZ=128;
+  for(const sym in cols){sprites[sym]=[];const base=hex2rgb(cols[sym]);
+    for(let f=0;f<FOG;f++){const c=document.createElement("canvas");c.width=c.height=SZ;const g=c.getContext("2d");
+      const fog=f/(FOG-1)*0.55;const tint=x=>rgb(mix(x,bg,fog));
+      const gr=g.createRadialGradient(SZ*.36,SZ*.33,SZ*.03,SZ*.5,SZ*.5,SZ*.5);
+      gr.addColorStop(0,tint(mix(base,[255,255,255],.8)));gr.addColorStop(.28,tint(mix(base,[255,255,255],.22)));
+      gr.addColorStop(.72,tint(base));gr.addColorStop(1,tint(mix(base,[0,0,0],.5)));
+      g.fillStyle=gr;g.beginPath();g.arc(SZ/2,SZ/2,SZ/2-1.5,0,Math.PI*2);g.fill();
+      g.strokeStyle=`rgba(0,0,0,${.28*(1-fog)})`;g.lineWidth=2;g.stroke();
+      sprites[sym].push(c)}}
+}
+function resize(){const r=stageEl.getBoundingClientRect();DPR=Math.min(2,window.devicePixelRatio||1);W=r.width;H=r.height;cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR)}
+new ResizeObserver(resize).observe(stageEl);
+const D=135;
+function proj(p){const cy=Math.cos(cam.yaw),sy=Math.sin(cam.yaw),cp=Math.cos(cam.pitch),sp=Math.sin(cam.pitch);
+  const x1=p[0]*cy+p[2]*sy,z1=-p[0]*sy+p[2]*cy,y2=p[1]*cp-z1*sp,z2=p[1]*sp+z1*cp;const zc=D+z2;
+  const f=Math.min(W/(2*VIEW[0]),H/(2*VIEW[1]))*D*cam.zoom;const k=f/zc;return [W/2+x1*k,H/2-y2*k,zc,k]}
+function fogIdx(zc){return clamp(Math.round((zc-(D-13))/28*(FOG-1)),0,FOG-1)}
+function render(){
+  if(!W)return;ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);
+  const items=[];const s=SALTS[S.salt];
+  const showPartialAll=S.opt.partial&&S.freeTarget<=60;
+  for(const ion of S.ions){const [x,y,zc,k]=proj(ion.pos);
+    items.push({z:zc,x,y,r:ion.r*k,sym:ion.sp.sym,a:1,lab:S.opt.charge?(ion.kind==="cat"?"+":"−"):null,ion});
+    if(S.opt.shell&&(ion.state==="complete"||ion.state==="hydrated"))items.push({z:zc+ion.Rc*.9,x,y,r:ion.Rc*k,halo:true,kind:ion.kind})}
+  for(const w of S.waters){if(w.alpha<.02)continue;const [x,y,zc,k]=proj(w.pos);
+    const part=S.opt.partial&&(w.state!=="free"||showPartialAll);
+    items.push({z:zc,x,y,r:R_O*k,sym:"O",a:w.alpha,lab:part?"δ−":null,small:true});
+    for(const hv of [HL,HR]){const hp=add(w.pos,qrot(w.q,hv));const [hx,hy,hz,hk]=proj(hp);items.push({z:hz,x:hx,y:hy,r:R_H*hk,sym:"H",a:w.alpha,lab:part?"δ+":null,small:true})}}
+  items.sort((a,b)=>b.z-a.z);
+  ctx.textAlign="center";ctx.textBaseline="middle";
+  const hydC=getComputedStyle(document.documentElement).getPropertyValue("--hyd").trim();
+  for(const it of items){
+    if(it.halo){ctx.globalAlpha=1;ctx.beginPath();ctx.arc(it.x,it.y,it.r,0,Math.PI*2);ctx.fillStyle="rgba(255,255,255,.16)";ctx.fill();
+      ctx.setLineDash([5,4]);ctx.lineWidth=1.4;ctx.strokeStyle=it.kind==="cat"?"rgba(110,60,170,.65)":"rgba(30,130,60,.65)";ctx.stroke();ctx.setLineDash([]);continue}
+    ctx.globalAlpha=it.a;const spr=sprites[it.sym][fogIdx(it.z)];ctx.drawImage(spr,it.x-it.r,it.y-it.r,it.r*2,it.r*2);
+    if(it.lab&&it.a>.5){
+      if(it.small){const fs=Math.max(8,it.r*(it.sym==="H"?1.0:0.85));ctx.font=`700 ${fs}px "Atkinson Hyperlegible",system-ui,sans-serif`;
+        ctx.lineWidth=2.4;ctx.strokeStyle=it.sym==="H"?"rgba(255,255,255,.9)":"rgba(0,0,0,.45)";ctx.fillStyle=it.sym==="H"?"#1d3f8a":"#fff";
+        ctx.strokeText(it.lab,it.x,it.y);ctx.fillText(it.lab,it.x,it.y)}
+      else{const fs=Math.max(10,it.r*(it.sym==="Cl"?1.15:1.45));ctx.font=`700 ${fs}px "Atkinson Hyperlegible",system-ui,sans-serif`;
+        ctx.lineWidth=Math.max(2,fs*.16);ctx.strokeStyle="rgba(0,0,0,.55)";ctx.fillStyle="#fff";ctx.strokeText(it.lab,it.x,it.y+fs*.04);ctx.fillText(it.lab,it.x,it.y+fs*.04)}}
+  }
+  ctx.globalAlpha=1;
+  // Energie-Markierungen (nur energetische Betrachtung)
+  if(S.view==="energy"&&S.mode==="real"){
+    const cs=getComputedStyle(document.documentElement),cG=cs.getPropertyValue("--gitter").trim(),cH=hydC;
+    for(const ion of S.ions){if(!ion.glow)continue;const [x,y,,k]=proj(ion.pos);const t=ion.glow.t,a=t<.2?t/.2:clamp(1-(t-1.4)/.8,0,1);
+      const isG=ion.glow.type==="G";ctx.globalAlpha=a;ctx.lineWidth=3;ctx.strokeStyle=isG?cG:cH;
+      ctx.beginPath();ctx.arc(x,y,(isG?ion.r*1.35:ion.Rc*1.02)*k+t*4,0,Math.PI*2);ctx.stroke()}
+    ctx.globalAlpha=1;
+    for(const e of S.events){const [x,y,,k]=proj(e.ion.pos);const t=e.t,a=t<.25?t/.25:clamp(1-(t-1.6)/.8,0,1);const isG=e.type==="G";
+      const txt=e.n<=3?(isG?"↑ Gitterenthalpie wird aufgewendet":"↓ Hydratationsenthalpie wird frei"):(isG?"↑ Gitter":"↓ Hydratation");
+      const fs=13;ctx.font=`700 ${fs}px "Atkinson Hyperlegible",system-ui,sans-serif`;const tw=ctx.measureText(txt).width+14;
+      let px=clamp(x,tw/2+4,W-tw/2-4),py=y-(isG?ion_r(e.ion,k)+16:e.ion.Rc*k+16)-t*10;py=clamp(py,14,H-14);
+      ctx.globalAlpha=a;const bgc=isG?cG:cH;ctx.fillStyle=bgc;roundRect(px-tw/2,py-11,tw,22,11);ctx.fill();const lum=hex2rgb(bgc).reduce((x,y,i)=>x+y*[.299,.587,.114][i],0);ctx.fillStyle=lum>150?"#10161b":"#fff";ctx.fillText(txt,px,py+1)}
+    ctx.globalAlpha=1;
+  }
+}
+const ion_r=(ion,k)=>ion.r*1.35*k;
+function roundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+
+/* ---------- Diagramm ---------- */
+const SV="http://www.w3.org/2000/svg";
+const fmt=(v,dec=0)=>{const s=Math.abs(v).toFixed(dec).replace(".",",");return (v<0?"−":v>0?"+":"±")+s};
+function el(tag,attrs,parent,text){const e=document.createElementNS(SV,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;if(parent)parent.appendChild(e);return e}
+const DG={};
+function drawDiagram(){
+  const svg=document.getElementById("diagram");svg.innerHTML="";const s=SALTS[S.salt];const num=S.opt.numbers;
+  const sc=0.29,y0=300,y1=y0-s.G*sc,y2=y1+(-s.H)*sc;
+  const ink="var(--ink)",muted="var(--muted)",cG="var(--gitter)",cH="var(--hyd)";
+  el("line",{x1:12,y1:y0+6,x2:12,y2:20,stroke:muted,"stroke-width":1.3},svg);
+  el("path",{d:"M7,26 L12,16 L17,26",fill:"none",stroke:muted,"stroke-width":1.3},svg);
+  el("text",{x:20,y:24,"font-size":12,fill:muted},svg,"Enthalpie H");
+  const lev=(x1,x2,y)=>el("line",{x1,x2,y1:y,y2:y,stroke:ink,"stroke-width":2.6,"stroke-linecap":"round"},svg);
+  lev(26,118,y0);lev(40,270,y1);lev(150,270,y2);
+  el("text",{x:26,y:y0+17,"font-size":12.5,fill:ink},svg).innerHTML=`<tspan font-weight="700">${s.formula}(s)</tspan> + Wasser`;
+  el("text",{x:40,y:y1-9,"font-size":12.5,fill:ink},svg).innerHTML=`<tspan font-weight="700">${s.cat.label} + ${s.an.label}</tspan> einzeln, ohne Wasser`;
+  el("text",{x:150,y:y2+17,"font-size":12.5,fill:ink},svg).innerHTML=`<tspan font-weight="700">${s.cat.label}(aq) + ${s.an.label}(aq)</tspan>`;
+  const arrow=(x,ya,yb,color,id)=>{const up=yb<ya,head=12,L=Math.abs(yb-ya)-head;const g=el("g",{},svg);
+    const top=up?yb+head:ya;el("rect",{x:x-6,y:top,width:12,height:L,fill:"none",stroke:color,"stroke-width":1.5},g);
+    const fill=el("rect",{x:x-6,y:ya,width:12,height:0,fill:color},g);
+    const hd=el("path",{d:up?`M${x-13},${yb+head} L${x},${yb} L${x+13},${yb+head} Z`:`M${x-13},${yb-head} L${x},${yb} L${x+13},${yb-head} Z`,fill:color,"fill-opacity":.25,stroke:color,"stroke-width":1.5},g);
+    DG[id]={fill,hd,ya,L,up};};
+  arrow(56,y0,y1,cG,"G");arrow(196,y1,y2,cH,"H");
+  const midG=(y0+y1)/2+10,midH=(y1+y2)/2-10;
+  const tG=el("text",{x:70,y:midG-16,"font-size":12.5,fill:cG},svg);
+  tG.innerHTML=`<tspan x="70" font-weight="700">Gitter-</tspan><tspan x="70" dy="15" font-weight="700">enthalpie</tspan><tspan x="70" dy="15">wird</tspan><tspan x="70" dy="15">aufgewendet</tspan>`+
+    (num?`<tspan x="70" dy="19" font-weight="700">ΔH</tspan><tspan baseline-shift="sub" font-size="9" font-weight="700">G</tspan><tspan x="70" dy="16" font-weight="700">${fmt(s.G)} kJ/mol</tspan>`:"");
+  const tH=el("text",{x:210,y:midH-16,"font-size":12.5,fill:cH},svg);
+  tH.innerHTML=`<tspan x="210" font-weight="700">Hydratations-</tspan><tspan x="210" dy="15" font-weight="700">enthalpie</tspan><tspan x="210" dy="15">wird frei</tspan>`+
+    (num?`<tspan x="210" dy="19" font-weight="700">ΔH</tspan><tspan baseline-shift="sub" font-size="9" font-weight="700">Hyd</tspan><tspan x="210" dy="16" font-weight="700">${fmt(s.H)} kJ/mol</tspan>`:"");
+  // Lupe als Streifen unter dem Diagramm
+  const bx=22,by=330,bw=372,bh=92,k=1.25,yc=by+bh/2+10,yl0=yc+s.L*k/2,yl2=yl0-s.L*k;
+  el("line",{x1:72,x2:72,y1:y0+22,y2:by,stroke:muted,"stroke-width":1,"stroke-dasharray":"3 3"},svg);
+  el("line",{x1:236,x2:236,y1:y2+22,y2:by,stroke:muted,"stroke-width":1,"stroke-dasharray":"3 3"},svg);
+  el("rect",{x:bx,y:by,width:bw,height:bh,rx:7,fill:"var(--page)",stroke:muted,"stroke-width":1.2},svg);
+  el("text",{x:bx+8,y:by+14,"font-size":10.5,fill:muted},svg,"Ausschnitt stark vergrößert: Ausgangs- und Endniveau");
+  el("line",{x1:40,x2:110,y1:yl0,y2:yl0,stroke:ink,"stroke-width":2.6},svg);
+  el("line",{x1:200,x2:270,y1:yl2,y2:yl2,stroke:ink,"stroke-width":2.6},svg);
+  el("text",{x:75,y:yl0+14,"font-size":10,"text-anchor":"middle",fill:muted},svg,"vorher");
+  el("text",{x:235,y:yl2-6,"font-size":10,"text-anchor":"middle",fill:muted},svg,"nachher");
+  el("line",{x1:110,x2:200,y1:yl0,y2:yl0,stroke:muted,"stroke-width":1,"stroke-dasharray":"2 3"},svg);
+  const lc=s.L<-5?"var(--warm)":(s.L>5?"var(--cold)":ink);
+  const gL=el("g",{opacity:0},svg);DG.Lg=gL;const ax=155;
+  if(Math.abs(s.L*k)>9){const up=s.L>0;
+    el("line",{x1:ax,x2:ax,y1:yl0,y2:up?yl2+8:yl2-8,stroke:lc,"stroke-width":2.6},gL);
+    el("path",{d:up?`M${ax-6},${yl2+9} L${ax},${yl2} L${ax+6},${yl2+9} Z`:`M${ax-6},${yl2-9} L${ax},${yl2} L${ax+6},${yl2-9} Z`,fill:lc},gL);}
+  else{el("text",{x:ax,y:yl0-3,"font-size":13,"text-anchor":"middle",fill:lc,"font-weight":700},gL,"≈ gleich")}
+  const lt=el("text",{x:284,y:yc-2,"font-size":12.5,fill:lc,"font-weight":700},gL);
+  lt.innerHTML=num?`<tspan x="284">ΔH</tspan><tspan baseline-shift="sub" font-size="9">L</tspan><tspan x="284" dy="16">${fmt(s.L,1)} kJ/mol</tspan>`:
+    `<tspan x="284">${s.L<-5?"exotherm":s.L>5?"endotherm":"kaum Wärme-"}</tspan><tspan x="284" dy="16">${s.L<-5?"Wärme wird frei":s.L>5?"Wärme wird":"austausch"}</tspan>`+(s.L>5?`<tspan x="284" dy="16">aufgenommen</tspan>`:"");
+}
+function drawThermo(){
+  const svg=el("g",{transform:"translate(404,0)"},document.getElementById("diagram"));const ink="var(--ink)",muted="var(--muted)";
+  el("text",{x:31,y:22,"font-size":11.5,"text-anchor":"middle",fill:muted},svg,"Lösung");
+  el("rect",{x:22,y:34,width:16,height:276,rx:8,fill:"var(--page)",stroke:ink,"stroke-width":1.5},svg);
+  el("circle",{cx:30,cy:324,r:17,fill:"var(--page)",stroke:ink,"stroke-width":1.5},svg);
+  DG.bulb=el("circle",{cx:30,cy:324,r:12,fill:ink},svg);
+  DG.col=el("rect",{x:26,y:170,width:8,height:150,rx:4,fill:ink},svg);
+  el("line",{x1:40,x2:50,y1:170,y2:170,stroke:muted,"stroke-width":1.5},svg);
+  el("text",{x:52,y:174,"font-size":10,fill:muted},svg,"T₀");
+  DG.tlab=el("text",{x:31,y:362,"font-size":12,"text-anchor":"middle",fill:ink,"font-weight":700},svg,"");
+}
+let lastE="";
+function updateEnergy(fG,fH,done,temp){
+  if(S.view!=="energy")return;
+  const sig=[fG.toFixed(3),fH.toFixed(3),done.toFixed(2),temp.toFixed(3)].join("|");if(sig===lastE)return;lastE=sig;
+  for(const [id,f] of [["G",fG],["H",fH]]){const d=DG[id];if(!d)continue;const h=d.L*clamp(f,0,1);
+    if(d.up){d.fill.setAttribute("y",d.ya-h)}else{d.fill.setAttribute("y",d.ya)}d.fill.setAttribute("height",h);d.hd.setAttribute("fill-opacity",f>=1?1:.25)}
+  if(DG.Lg)DG.Lg.setAttribute("opacity",clamp(done,0,1));
+  const ytop=170-temp*125;DG.col.setAttribute("y",ytop);DG.col.setAttribute("height",324-ytop);
+  const c=temp>.14?"var(--warm)":temp<-.14?"var(--cold)":"var(--ink)";DG.col.setAttribute("fill",c);DG.bulb.setAttribute("fill",c);
+  DG.tlab.textContent=temp>.14?"wärmer":temp<-.14?"kälter":(done>.5?"≈ gleich":"");DG.tlab.setAttribute("fill",c);
+}
+
+/* ---------- Oberfläche ---------- */
+const $=id=>document.getElementById(id);
+const CASE_TEXT={
+  LiCl:`Bei der Hydratation wird <strong>mehr Energie frei</strong>, als zum Zerlegen des Gitters aufgewendet werden muss (|ΔH<sub>Hyd</sub>| &gt; ΔH<sub>G</sub>). Der Überschuss wird an die Umgebung abgegeben: <strong>Die Lösung erwärmt sich</strong> (exotherm, ΔH<sub>L</sub> &lt; 0). Das kleine Li⁺-Ion zieht die Wassermoleküle besonders stark an.`,
+  NaCl:`Gitterenthalpie und Hydratationsenthalpie sind <strong>fast gleich groß</strong> (ΔH<sub>G</sub> ≈ |ΔH<sub>Hyd</sub>|). Es wird kaum Energie mit der Umgebung ausgetauscht: <strong>Die Temperatur bleibt nahezu gleich</strong> (genau genommen sehr schwach endotherm).`,
+  KCl:`Zum Zerlegen des Gitters muss <strong>mehr Energie aufgewendet</strong> werden, als bei der Hydratation frei wird (ΔH<sub>G</sub> &gt; |ΔH<sub>Hyd</sub>|). Die fehlende Energie wird der Umgebung entzogen: <strong>Die Lösung kühlt ab</strong> (endotherm, ΔH<sub>L</sub> &gt; 0). Das größere K⁺-Ion wird schwächer hydratisiert.`
+};
+const ui={
+  onReset(){drawDiagram();drawThermo();lastE="";updateEnergy(0,0,0,0);setTitle();setLegend();setSteps();$("explain").innerHTML=CASE_TEXT[S.salt];
+    buildSolution();buildLimits();$("scrub").hidden=$("time").hidden=S.mode!=="real";$("scrub").max=S.dur.toFixed(2);}
+};
+function setTitle(){const s=SALTS[S.salt];$("title").innerHTML=`Lösen von ${s.name} in Wasser<small>${S.view==="particles"?"Vereinfachte Modelldarstellung auf der Teilchenebene":"Energetische Betrachtung: Gitterenthalpie und Hydratationsenthalpie"}</small>`;document.title=`Lösen von ${s.name} in Wasser`}
+function setLegend(){const s=SALTS[S.salt];$("legend").innerHTML=
+  `<span><i style="background:${s.an.color}"></i>${s.an.label} ${s.an.name}</span><span><i style="background:${s.cat.color}"></i>${s.cat.label} ${s.cat.name}</span><span><i class="w"><b style="background:#e0352f"></b><b style="background:#f3f4f5"></b></i>H₂O Wassermolekül</span>`}
+function setSteps(){$("steps").hidden=S.mode!=="step";$("step1").disabled=S.step!==0;$("step2").disabled=!(S.step===1&&S.gasDone);
+  $("step1").classList.toggle("done",S.step>=1);$("step2").classList.toggle("done",S.step>=2)}
+const mmss=t=>{t=Math.max(0,Math.round(t));return Math.floor(t/60)+":"+String(t%60).padStart(2,"0")};
+let solTimes=[];
+function buildSolution(){
+  const s=SALTS[S.salt],c=s.cat.label,a=s.an.label,m=S.marks||{};
+  const steps=[
+    [0,`<strong>Ausgangszustand:</strong> Im Kristall sind ${c}- und ${a}-Ionen regelmäßig und abwechselnd angeordnet (Ionengitter). Sie werden durch die Anziehung entgegengesetzter Ladungen zusammengehalten und schwingen nur leicht um ihre Plätze. Die Wassermoleküle bewegen sich ständig und ungeordnet.`],
+    [m.attack,`<strong>Anlagerung:</strong> Wassermoleküle sind Dipole. Sie lagern sich an Ionen an den Ecken und Kanten des Kristalls an: mit dem negativ polarisierten O-Atom (δ−) zum ${c}-Ion, mit einem positiv polarisierten H-Atom (δ+) zum ${a}-Ion.`],
+    [m.detach,`<strong>Herauslösen:</strong> Die Anziehung zwischen Ion und Wasserdipolen löst das Ion aus dem Gitter. Zuerst lösen sich Ionen an Ecken und Kanten, weil sie dort von den wenigsten Nachbar-Ionen festgehalten werden.`],
+    [m.hyd,`<strong>Hydratation:</strong> Das herausgelöste Ion wird vollständig von Wassermolekülen umgeben (Hydrathülle). Es ist hydratisiert; man schreibt ${c}(aq) bzw. ${a}(aq).`],
+    [m.half,`<strong>Abbau des Kristalls:</strong> So wird der Kristall von außen nach innen abgebaut, Ion für Ion und Schicht für Schicht.`],
+    [m.done,`<strong>Lösung:</strong> Alle Ionen sind hydratisiert. Sie bewegen sich frei zwischen den Wassermolekülen und verteilen sich gleichmäßig.`]
+  ].filter(x=>x[0]!=null).sort((x,y)=>x[0]-y[0]);
+  solTimes=steps.map(x=>x[0]);
+  $("solSteps").innerHTML=steps.map((x,i)=>`<li data-i="${i}">${x[1]} <button class="jump" data-t="${x[0]}">Stelle zeigen (${mmss(x[0])})</button></li>`).join("");
+  $("solEq").innerHTML=`${s.formula}(s) <span style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;font-size:.72em;vertical-align:middle;margin:0 .25em">Wasser<span style="font-size:1.7em">⟶</span></span> ${c}(aq) + ${a}(aq)`;
+  $("solSteps").querySelectorAll(".jump").forEach(btn=>btn.onclick=()=>{seek(Math.max(0,+btn.dataset.t-0.4));S.running=false;setPlay();
+    stageEl.scrollIntoView({behavior:"smooth",block:"nearest"})});
+}
+function buildLimits(){
+  const s=SALTS[S.salt],N=S.ions.length,nA=S.ions.filter(i=>i.kind==="an").length,nC=N-nA;
+  const items=[
+    `<strong>Teilchen als Kugeln:</strong> Ionen und Wassermoleküle sind als Kugeln dargestellt. Die Größenverhältnisse stimmen ungefähr, die Farben sind frei gewählt – Teilchen haben keine Farbe.`,
+    `<strong>Viel weniger Wasser:</strong> In Wirklichkeit liegen die Wassermoleküle dicht an dicht. Zwischen ihnen ist kein „anderes Wasser“: Das Wasser besteht nur aus Wassermolekülen. Der graue Hintergrund stellt keinen Stoff dar.`,
+    `<strong>Winziger Kristall:</strong> Hier sind es ${N} Ionen. Schon ein einzelnes kleines Salzkorn (etwa 0,1 mg) enthält rund 2 · 10¹⁸ Ionen.`,
+    nA!==nC?`<strong>Ladungen:</strong> Im Modell sind es ${nA} ${s.an.label}- und ${nC} ${s.cat.label}-Ionen. Ein echter Kristall ist elektrisch neutral – positive und negative Ladungen gleichen sich genau aus. (Mit 3 × 3 × 2 Ionen ist auch das Modell ausgeglichen.)`:null,
+    `<strong>Hydrathülle:</strong> Die Zahl der angelagerten Wassermoleküle ist vereinfacht (hier ${s.cat.n} am ${s.cat.label}-Ion, ${s.an.n} am ${s.an.label}-Ion). In Wirklichkeit tauschen die Moleküle der Hülle ständig mit anderen Wassermolekülen aus, und weitere Wassermoleküle sind locker gebunden.`,
+    `<strong>Zeitlupe:</strong> Der echte Vorgang läuft viel schneller ab. Die Teilchen bewegen sich viel schneller und stoßen ständig zusammen; im Modell ist die Bewegung beruhigt.`,
+    `<strong>Energie:</strong> Das Zerlegen in „Gitter zerlegen“ und „Ionen hydratisieren“ ist nur gedacht. In Wirklichkeit laufen beide Vorgänge gleichzeitig ab, Ion für Ion. Dass sich die Teilchen bei Erwärmung schneller bewegen, ist im Modell nur angedeutet.`
+  ].filter(Boolean);
+  $("limits").innerHTML=items.map(x=>`<li>${x}</li>`).join("");
+}
+let lastSol=-2;
+function updateUI(){
+  const N=S.ions.length;const cnt=`Hydratisierte Ionen: ${S.nH} von ${N}`;if($("count").textContent!==cnt)$("count").textContent=cnt;
+  if(S.mode==="real"){const sc=$("scrub");if(!scrubbing)sc.value=S.t.toFixed(2);const tl=`${mmss(S.t)} / ${mmss(S.dur)}`;if($("time").textContent!==tl)$("time").textContent=tl;
+    let k=-1;solTimes.forEach((t,i)=>{if(S.t>=t-0.01)k=i});
+    if(k!==lastSol){lastSol=k;$("solSteps").querySelectorAll("li").forEach((li,i)=>li.classList.toggle("now",i===k))}}
+  updateEnergy(S.fG,S.fH,S.done,S.tempNow);
+  if(S.mode==="step"&&S.gasDone!==prevGas){prevGas=S.gasDone;setSteps()}
+}
+let prevGas=false,scrubbing=false;
+function setPlay(){$("play").textContent=S.running?"❚❚ Anhalten":"▶ Abspielen"}
+$("play").onclick=()=>{if(!S.running&&S.mode==="real"&&S.t>=S.dur-0.01)seek(0);S.running=!S.running;setPlay()};
+$("restart").onclick=()=>{if(S.mode==="real"){seek(0)}else{reset()}lastSol=-2;setPlay()};
+const scrub=$("scrub");
+scrub.addEventListener("input",()=>{scrubbing=true;seek(+scrub.value)});
+const endScrub=()=>{scrubbing=false};scrub.addEventListener("change",endScrub);scrub.addEventListener("pointerup",endScrub);scrub.addEventListener("touchend",endScrub);
+$("speed").onchange=e=>S.speed=+e.target.value;
+$("optCharge").onchange=e=>S.opt.charge=e.target.checked;
+$("optPartial").onchange=e=>S.opt.partial=e.target.checked;
+$("optShell").onchange=e=>S.opt.shell=e.target.checked;
+$("optWater").oninput=e=>{$("waterOut").textContent=e.target.value};
+$("optWater").onchange=e=>{S.freeTarget=+e.target.value;if(S.mode==="real"){const t=S.t;reset();seek(t)}};
+$("optCrystal").onchange=e=>{S.crystal=e.target.value;reset();S.running=true;setPlay()};
+$("optNumbers").onchange=e=>{S.opt.numbers=e.target.checked;drawDiagram();drawThermo();lastE=""};
+$("resetView").onclick=()=>{cam.yaw=-0.55;cam.pitch=0.32;cam.zoom=1};
+$("fs").onclick=()=>{const el=document.querySelector(".stage-wrap");const req=el.requestFullscreen||el.webkitRequestFullscreen;const ex=document.exitFullscreen||document.webkitExitFullscreen;
+  if(document.fullscreenElement||document.webkitFullscreenElement){ex&&ex.call(document)}else if(req){req.call(el)}};
+function setView(v){S.view=v;$("tab-p").setAttribute("aria-selected",v==="particles");$("tab-e").setAttribute("aria-selected",v==="energy");
+  $("layout").classList.toggle("energy",v==="energy");$("panel").hidden=v!=="energy";
+  if(v==="particles"&&S.mode==="step"){S.mode="real";$("modeReal").setAttribute("aria-pressed","true");$("modeStep").setAttribute("aria-pressed","false");reset()}
+  setTitle();lastE="";drawDiagram();drawThermo();updateEnergy(S.fG,S.fH,S.done,S.tempNow)}
+$("tab-p").onclick=()=>setView("particles");$("tab-e").onclick=()=>setView("energy");
+document.querySelector(".tabs").addEventListener("keydown",e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){const n=S.view==="particles"?"energy":"particles";setView(n);$(n==="energy"?"tab-e":"tab-p").focus()}});
+const saltBox=$("salts");
+for(const k of ["LiCl","NaCl","KCl"]){const b=document.createElement("button");b.innerHTML=`<b>${SALTS[k].formula}</b><small>${SALTS[k].name}</small>`;b.dataset.salt=k;
+  b.setAttribute("aria-pressed",k===S.salt);b.onclick=()=>{S.salt=k;[...saltBox.children].forEach(c=>c.setAttribute("aria-pressed",c.dataset.salt===k));reset();S.running=true;setPlay()};saltBox.appendChild(b)}
+function setMode(m){S.mode=m;$("modeReal").setAttribute("aria-pressed",m==="real");$("modeStep").setAttribute("aria-pressed",m==="step");prevGas=false;reset();S.running=true;setPlay()}
+$("modeReal").onclick=()=>setMode("real");$("modeStep").onclick=()=>setMode("step");
+$("step1").onclick=()=>{startStep(1);setSteps()};$("step2").onclick=()=>{startStep(2);setSteps()};
+document.addEventListener("keydown",e=>{if(e.code==="Space"&&!["INPUT","SELECT","BUTTON","SUMMARY"].includes(document.activeElement.tagName)){e.preventDefault();$("play").click()}});
+// Drehen / Zoomen
+const ptrs=new Map();let pinch0=0,zoom0=1;
+stageEl.addEventListener("pointerdown",e=>{stageEl.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,[e.clientX,e.clientY]);if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch0=Math.hypot(a[0]-b[0],a[1]-b[1]);zoom0=cam.zoom}});
+stageEl.addEventListener("pointermove",e=>{if(!ptrs.has(e.pointerId))return;const p=ptrs.get(e.pointerId);
+  if(ptrs.size===1){cam.yaw+=(e.clientX-p[0])*.008;cam.pitch=clamp(cam.pitch+(e.clientY-p[1])*.008,-1.3,1.3)}
+  ptrs.set(e.pointerId,[e.clientX,e.clientY]);
+  if(ptrs.size===2){const [a,b]=[...ptrs.values()];cam.zoom=clamp(zoom0*Math.hypot(a[0]-b[0],a[1]-b[1])/pinch0,.6,2.5)}});
+const up=e=>ptrs.delete(e.pointerId);stageEl.addEventListener("pointerup",up);stageEl.addEventListener("pointercancel",up);
+stageEl.addEventListener("wheel",e=>{e.preventDefault();cam.zoom=clamp(cam.zoom*Math.exp(-e.deltaY*.0015),.6,2.5)},{passive:false});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",buildSprites);
+
+/* ---------- Start ---------- */
+buildSprites();resize();
+S.running=false; // Start mit Standbild
+reset();setPlay();
+let last=performance.now(),acc=0;
+function frame(now){const real=Math.min(.1,(now-last)/1000);last=now;
+  if(S.running&&!scrubbing){acc+=real*S.speed;let g=0;
+    while(acc>=DT&&g<20){if(S.mode==="real"&&S.t>=S.dur-1e-6){S.running=false;setPlay();acc=0;break}stepSim(DT);acc-=DT;g++}
+    if(g>=20)acc=0}
+  render();updateUI();requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
